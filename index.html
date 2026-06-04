@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ReachPro Sales Intelligence</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#0d0d1a;color:#f0f0f8;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;min-height:100vh}
+header{background:#13132a;border-bottom:1px solid rgba(110,231,183,.12);padding:14px 28px;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:99}
+.logo{font-size:17px;font-weight:600;color:#6ee7b7}.logo span{color:#8888aa;font-weight:400;font-size:13px;margin-left:8px}
+.hdr-r{display:flex;gap:10px;align-items:center}
+.badge{background:rgba(110,231,183,.1);color:#6ee7b7;border:1px solid rgba(110,231,183,.25);padding:5px 14px;border-radius:20px;font-size:12px;cursor:pointer}
+.updated{font-size:11px;color:#8888aa}
+.wrap{max-width:1400px;margin:0 auto;padding:22px 28px}
+.filters{background:#13132a;border:1px solid rgba(110,231,183,.1);border-radius:12px;padding:16px 20px;margin-bottom:18px;display:flex;gap:16px;flex-wrap:wrap;align-items:flex-end}
+.fg{display:flex;flex-direction:column;gap:5px}
+.fg label{font-size:11px;color:#8888aa;text-transform:uppercase;letter-spacing:.05em}
+.fg input,.fg select{background:#1a1a2e;border:1px solid rgba(110,231,183,.12);color:#f0f0f8;padding:7px 12px;border-radius:8px;font-size:13px;outline:none;min-width:130px}
+.qbtns{display:flex;gap:6px;flex-wrap:wrap}
+.qb{background:#1a1a2e;border:1px solid rgba(110,231,183,.12);color:#8888aa;padding:6px 13px;border-radius:20px;font-size:12px;cursor:pointer;transition:.15s}
+.qb:hover,.qb.on{background:rgba(110,231,183,.1);border-color:rgba(110,231,183,.35);color:#6ee7b7}
+.apply{background:#6ee7b7;color:#0d0d1a;border:none;padding:8px 20px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer}
+.rpills{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:18px}
+.rp{background:#1a1a2e;border:1px solid rgba(110,231,183,.12);color:#8888aa;padding:6px 16px;border-radius:20px;font-size:12px;cursor:pointer;transition:.15s}
+.rp:hover,.rp.on{background:rgba(110,231,183,.1);border-color:rgba(110,231,183,.35);color:#6ee7b7}
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:18px}
+@media(max-width:800px){.kpis{grid-template-columns:1fr 1fr}}
+.kpi{background:#1a1a2e;border:1px solid rgba(110,231,183,.1);border-top:3px solid #6ee7b7;border-radius:12px;padding:18px 20px}
+.kpi.p{border-top-color:#818cf8}
+.kpi-lbl{font-size:11px;color:#8888aa;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px}
+.kpi-val{font-size:26px;font-weight:700}
+.kpi-sub{font-size:12px;color:#8888aa;margin-top:4px}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px}
+@media(max-width:800px){.g2{grid-template-columns:1fr}}
+.card{background:#1a1a2e;border:1px solid rgba(110,231,183,.1);border-radius:12px;padding:18px}
+.card-full{background:#1a1a2e;border:1px solid rgba(110,231,183,.1);border-radius:12px;padding:18px;margin-bottom:16px}
+.ct{font-size:13px;font-weight:600;color:#f0f0f8;margin-bottom:14px}
+.tbl{width:100%;border-collapse:collapse;font-size:12px}
+.tbl th{text-align:left;padding:7px 10px;color:#8888aa;font-size:11px;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,.06);font-weight:500}
+.tbl td{padding:9px 10px;border-bottom:1px solid rgba(255,255,255,.04)}
+.tbl tr:hover td{background:rgba(255,255,255,.02)}
+.green{color:#6ee7b7;font-weight:600}.muted{color:#8888aa}
+.bar-row{display:flex;align-items:center;gap:8px;margin-bottom:9px}
+.bl{font-size:12px;width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex-shrink:0}
+.bt{flex:1;background:rgba(255,255,255,.06);border-radius:3px;height:7px}
+.bf{height:100%;border-radius:3px;background:linear-gradient(90deg,#6ee7b7,#34d399)}
+.bf2{background:linear-gradient(90deg,#818cf8,#a78bfa)}
+.bv{font-size:12px;color:#8888aa;width:80px;text-align:right;flex-shrink:0}
+.loading{text-align:center;padding:50px;color:#8888aa}
+.spin{width:28px;height:28px;border:2px solid rgba(110,231,183,.2);border-top-color:#6ee7b7;border-radius:50%;animation:spin .7s linear infinite;margin:0 auto 12px}
+@keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">ReachPro <span>Sales Intelligence</span></div>
+  <div class="hdr-r">
+    <span class="updated" id="upd"></span>
+    <button class="badge" onclick="init()">&#x1F504; Refresh</button>
+  </div>
+</header>
+<div class="wrap">
+  <div class="filters">
+    <div class="fg"><label>From</label><input type="date" id="dfrom"></div>
+    <div class="fg"><label>To</label><input type="date" id="dto"></div>
+    <div class="fg">
+      <label>Quick Range</label>
+      <div class="qbtns">
+        <button class="qb" onclick="setDays(0,this)">Today</button>
+        <button class="qb" onclick="setDays(2,this)">2 Days</button>
+        <button class="qb" onclick="setDays(3,this)">3 Days</button>
+        <button class="qb" onclick="setDays(7,this)">7 Days</button>
+        <button class="qb" onclick="setDays(14,this)">14 Days</button>
+        <button class="qb" onclick="setDays(30,this)">30 Days</button>
+        <button class="qb on" onclick="setAll(this)">All Time</button>
+      </div>
+    </div>
+    <button class="apply" onclick="render()">Apply</button>
+  </div>
+  <div class="rpills">
+    <div class="rp on" onclick="setRegion('all',this)">All Regions</div>
+    <div class="rp" onclick="setRegion('Northeast',this)">Northeast</div>
+    <div class="rp" onclick="setRegion('Southeast',this)">Southeast</div>
+    <div class="rp" onclick="setRegion('Midwest',this)">Midwest</div>
+    <div class="rp" onclick="setRegion('West',this)">West</div>
+    <div class="rp" onclick="setRegion('Canada',this)">Canada</div>
+  </div>
+  <div class="kpis" id="kpis"><div class="loading" style="grid-column:1/-1"><div class="spin"></div>Loading sales_data.csv...</div></div>
+  <div class="card-full"><div class="ct">&#x1F4C8; Daily Revenue Trend</div><canvas id="trendChart" height="65"></canvas></div>
+  <div class="g2">
+    <div class="card"><div class="ct">&#x1F3C6; Top Performers by Revenue</div><table class="tbl"><thead><tr><th>#</th><th>Event</th><th>Passes</th><th>Revenue</th></tr></thead><tbody id="tbody-ev"></tbody></table></div>
+    <div class="card"><div class="ct">&#x1F3DF;&#xFE0F; Top Venues by Revenue</div><div id="venues-bars"></div></div>
+  </div>
+  <div class="g2">
+    <div class="card">
+      <div class="ct">&#x1F17F;&#xFE0F; Top Facilities / Sections
+        <span style="float:right;display:flex;gap:6px">
+          <button class="qb on" id="sc-cnt" onclick="toggleSec('count')" style="padding:3px 10px;font-size:11px">By Count</button>
+          <button class="qb" id="sc-rev" onclick="toggleSec('rev')" style="padding:3px 10px;font-size:11px">By Revenue</button>
+        </span>
+      </div>
+      <div id="sec-bars"></div>
+    </div>
+    <div class="card"><div class="ct">&#x1F30E; Sales by Region</div><table class="tbl"><thead><tr><th>Region</th><th>Passes</th><th>Txns</th><th>Revenue</th></tr></thead><tbody id="tbody-rg"></tbody></table></div>
+  </div>
+  <div class="card-full"><div class="ct">&#x1F4C5; Sales by Day of Week</div><canvas id="dowChart" height="55"></canvas></div>
+  <div id="rg-sections"></div>
+</div>
+
+<script>
+var CITY_REGION = {
+  "ames":"Midwest","anaheim":"West","arlington":"South","asheville":"Southeast",
+  "atlanta":"Southeast","atlantic city":"Northeast","austin":"South","baltimore":"Northeast",
+  "baton rouge":"Southeast","berkeley":"West","birmingham":"Southeast","boston":"Northeast",
+  "bronx":"Northeast","brooklyn":"Northeast","calgary":"Canada","camden":"Northeast",
+  "charlotte":"Southeast","charlottesville":"Southeast","chicago":"Midwest",
+  "cincinnati":"Midwest","cleveland":"Midwest","colorado springs":"West","columbus":"Midwest",
+  "corona":"West","dallas":"South","denver":"West","detroit":"Midwest",
+  "east rutherford":"Northeast","edmonton":"Canada","elmont":"Northeast","englewood":"West",
+  "eugene":"West","everett":"West","flushing":"Northeast","fort worth":"South",
+  "foxborough":"Northeast","glendale":"West","grand rapids":"Midwest","greenville":"Southeast",
+  "hamilton":"Canada","harrison":"Northeast","hartford":"Northeast","hollywood":"Southeast",
+  "honolulu":"West","houston":"South","indianapolis":"Midwest","inglewood":"West",
+  "irving":"South","jacksonville":"Southeast","kansas city":"Midwest","landover":"Northeast",
+  "las vegas":"West","lexington":"Southeast","los angeles":"West","louisville":"Southeast",
+  "macon":"Southeast","miami":"Southeast","miami beach":"Southeast","milwaukee":"Midwest",
+  "minneapolis":"Midwest","mobile":"Southeast","montclair":"Northeast","nashville":"Southeast",
+  "new haven":"Northeast","new orleans":"Southeast","new york":"Northeast","newark":"Northeast",
+  "north charleston":"Southeast","north little rock":"Southeast","oakland":"West",
+  "oklahoma city":"South","omaha":"Midwest","orlando":"Southeast","pasadena":"West",
+  "philadelphia":"Northeast","phoenix":"West","pittsburgh":"Northeast","portland":"West",
+  "raleigh":"Southeast","richmond":"Southeast","rochester":"Northeast","rosemont":"Midwest",
+  "sacramento":"West","saint louis":"Midwest","salt lake city":"West","san antonio":"South",
+  "san diego":"West","san francisco":"West","san jose":"West","santa clara":"West",
+  "savannah":"Southeast","seattle":"West","shreveport":"Southeast","st. louis":"Midwest",
+  "tacoma":"West","tampa":"Southeast","thousand palms":"West","toronto":"Canada",
+  "tucson":"West","tulsa":"South","uncasville":"Northeast","vancouver":"Canada",
+  "washington":"Northeast","wilmington":"Northeast","winnipeg":"Canada","worcester":"Northeast"
+};
+
+function getRegion(city){return CITY_REGION[(city||"").toLowerCase().trim()]||"Other";}
+function fmt(n){return"$"+Number(n).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2});}
+function fmtN(n){return Number(n).toLocaleString();}
+
+var ALL_DATA=[], secSort="count", curRegion="all";
+var trendInst=null, dowInst=null;
+
+function setDays(d,btn){
+  document.querySelectorAll(".qb").forEach(function(b){if(b.classList.contains("on")&&!b.id)b.classList.remove("on")});
+  document.querySelectorAll(".qbtns .qb").forEach(function(b){b.classList.remove("on")});
+  btn.classList.add("on");
+  var t=new Date(),f=new Date(t);
+  f.setDate(t.getDate()-Math.max(d,1));
+  document.getElementById("dto").value=t.toISOString().slice(0,10);
+  document.getElementById("dfrom").value=f.toISOString().slice(0,10);
+}
+function setAll(btn){
+  document.querySelectorAll(".qbtns .qb").forEach(function(b){b.classList.remove("on")});
+  btn.classList.add("on");
+  document.getElementById("dfrom").value="";
+  document.getElementById("dto").value="";
+}
+function setRegion(r,el){
+  document.querySelectorAll(".rp").forEach(function(p){p.classList.remove("on")});
+  el.classList.add("on"); curRegion=r; render();
+}
+function toggleSec(s){
+  secSort=s;
+  document.getElementById("sc-cnt").classList.toggle("on",s==="count");
+  document.getElementById("sc-rev").classList.toggle("on",s==="rev");
+  render();
+}
+
+function getFiltered(){
+  var from=document.getElementById("dfrom").value;
+  var to=document.getElementById("dto").value;
+  return ALL_DATA.filter(function(r){
+    if(from&&r.saleDate<from)return false;
+    if(to&&r.saleDate>to+" 23:59:59")return false;
+    if(curRegion!=="all"&&r.region!==curRegion)return false;
+    return true;
+  });
+}
+
+function init(){
+  Papa.parse("sales_data.csv?t="+Date.now(),{
+    download:true,header:true,skipEmptyLines:true,
+    complete:function(res){
+      ALL_DATA=res.data.map(function(r){
+        return{
+          saleId:r.SaleId,
+          saleDate:(r.SaleDate||"").slice(0,10),
+          eventName:(r.EventName||"").replace("PARKING PASSES ONLY ",""),
+          venue:r.Venue||"",
+          city:r.VenueCity||"",
+          region:getRegion(r.VenueCity),
+          section:r.Section||"",
+          qty:parseInt(r.Quantity)||1,
+          revenue:parseFloat(r.NetSale||r.TotalSale)||0,
+          grossRevenue:parseFloat(r.TotalSale)||0,
+          marketplace:r.Marketplace||"",
+          dow:new Date(r.SaleDate).toLocaleDateString("en-US",{weekday:"long"})
+        };
+      }).filter(function(r){return r.revenue>0;});
+
+      var latest=ALL_DATA.reduce(function(a,b){return b.saleDate>a?b.saleDate:a},"");
+      document.getElementById("upd").textContent="Data through "+latest;
+      render();
+    },
+    error:function(e){
+      document.getElementById("kpis").innerHTML='<div class="loading" style="grid-column:1/-1;color:#ef4444">&#x26A0; Could not load sales_data.csv — make sure the file is in the same folder as index.html</div>';
+    }
+  });
+}
+
+function render(){
+  var d=getFiltered();
+  if(!d.length){
+    document.getElementById("kpis").innerHTML='<div class="loading" style="grid-column:1/-1">No data for selected range/region</div>';
+    return;
+  }
+
+  var totalRev=d.reduce(function(s,r){return s+r.revenue;},0);
+  var totalQty=d.reduce(function(s,r){return s+r.qty;},0);
+  var txns=d.length;
+  var avg=totalQty>0?totalRev/totalQty:0;
+
+  // Peak day
+  var byDay={};
+  d.forEach(function(r){byDay[r.saleDate]=(byDay[r.saleDate]||0)+r.revenue;});
+  var peakDay=Object.entries(byDay).reduce(function(a,b){return b[1]>a[1]?b:a},["—",0]);
+
+  document.getElementById("kpis").innerHTML=
+    kpi("Total Revenue",fmt(totalRev),fmtN(txns)+" transactions",false)+
+    kpi("Passes Sold",fmtN(totalQty),"tickets sold",false)+
+    kpi("Avg Revenue / Pass",fmt(avg),"net per ticket",true)+
+    kpi("Peak Day",fmt(peakDay[1]),peakDay[0],true);
+
+  // Trend
+  var days=Object.entries(byDay).sort(function(a,b){return a[0]>b[0]?1:-1});
+  if(trendInst)trendInst.destroy();
+  trendInst=new Chart(document.getElementById("trendChart"),{type:"line",data:{
+    labels:days.map(function(d){return d[0]}),
+    datasets:[{label:"Revenue",data:days.map(function(d){return d[1].toFixed(2)}),
+      borderColor:"#6ee7b7",backgroundColor:"rgba(110,231,183,.07)",fill:true,tension:.4,pointRadius:2}]
+  },options:{plugins:{legend:{display:false}},scales:{
+    x:{grid:{color:"rgba(255,255,255,.04)"},ticks:{color:"#8888aa",maxTicksLimit:12}},
+    y:{grid:{color:"rgba(255,255,255,.04)"},ticks:{color:"#8888aa",callback:function(v){return"$"+v.toLocaleString()}}}
+  },responsive:true}});
+
+  // Top events
+  var evMap={};
+  d.forEach(function(r){if(!evMap[r.eventName])evMap[r.eventName]={rev:0,qty:0};evMap[r.eventName].rev+=r.revenue;evMap[r.eventName].qty+=r.qty;});
+  var topEv=Object.entries(evMap).sort(function(a,b){return b[1].rev-a[1].rev}).slice(0,15);
+  var tbody=document.getElementById("tbody-ev");tbody.innerHTML="";
+  topEv.forEach(function(ev,i){
+    var tr=document.createElement("tr");
+    tr.innerHTML='<td class="muted">'+(i+1)+'</td><td title="'+ev[0]+'">'+ev[0].slice(0,42)+'</td><td class="green">'+fmtN(ev[1].qty)+'</td><td>'+fmt(ev[1].rev)+'</td>';
+    tbody.appendChild(tr);
+  });
+
+  // Top venues
+  var vnMap={};
+  d.forEach(function(r){if(!vnMap[r.venue])vnMap[r.venue]={rev:0,qty:0};vnMap[r.venue].rev+=r.revenue;vnMap[r.venue].qty+=r.qty;});
+  var topVn=Object.entries(vnMap).sort(function(a,b){return b[1].rev-a[1].rev}).slice(0,10);
+  barChart("venues-bars",topVn.map(function(v){return{label:v[0],val:v[1].rev,fmt:fmt}}),false);
+
+  // Sections
+  var scMap={};
+  d.forEach(function(r){if(!r.section)return;if(!scMap[r.section])scMap[r.section]={rev:0,qty:0};scMap[r.section].rev+=r.revenue;scMap[r.section].qty+=r.qty;});
+  var topSc=Object.entries(scMap).sort(function(a,b){return secSort==="count"?b[1].qty-a[1].qty:b[1].rev-a[1].rev}).slice(0,10);
+  barChart("sec-bars",topSc.map(function(s){return{label:s[0],val:secSort==="count"?s[1].qty:s[1].rev,fmt:secSort==="count"?fmtN:fmt}}),true);
+
+  // Regions
+  var rgMap={};
+  d.forEach(function(r){if(!rgMap[r.region])rgMap[r.region]={rev:0,qty:0,txns:0};rgMap[r.region].rev+=r.revenue;rgMap[r.region].qty+=r.qty;rgMap[r.region].txns++;});
+  var topRg=Object.entries(rgMap).sort(function(a,b){return b[1].rev-a[1].rev});
+  var tbody2=document.getElementById("tbody-rg");tbody2.innerHTML="";
+  topRg.forEach(function(rg){
+    var tr=document.createElement("tr");
+    tr.innerHTML='<td>'+rg[0]+'</td><td class="green">'+fmtN(rg[1].qty)+'</td><td class="muted">'+fmtN(rg[1].txns)+'</td><td>'+fmt(rg[1].rev)+'</td>';
+    tbody2.appendChild(tr);
+  });
+
+  // DOW
+  var DOW=["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
+  var dowMap={};
+  d.forEach(function(r){if(!dowMap[r.dow])dowMap[r.dow]={rev:0,qty:0};dowMap[r.dow].rev+=r.revenue;dowMap[r.dow].qty+=r.qty;});
+  var ds=DOW.map(function(day){return dowMap[day]||{rev:0,qty:0};});
+  if(dowInst)dowInst.destroy();
+  dowInst=new Chart(document.getElementById("dowChart"),{type:"bar",data:{
+    labels:DOW.map(function(d){return d.slice(0,3)}),
+    datasets:[
+      {label:"Revenue ($)",data:ds.map(function(d){return d.rev.toFixed(2)}),backgroundColor:"rgba(110,231,183,.65)",borderRadius:4},
+      {label:"Passes",data:ds.map(function(d){return d.qty}),backgroundColor:"rgba(129,140,248,.65)",borderRadius:4}
+    ]
+  },options:{plugins:{legend:{labels:{color:"#8888aa",font:{size:11}}}},scales:{
+    x:{grid:{display:false},ticks:{color:"#8888aa"}},
+    y:{grid:{color:"rgba(255,255,255,.04)"},ticks:{color:"#8888aa"}}
+  },responsive:true}});
+
+  // Per-region section breakdown
+  var rgSecEl=document.getElementById("rg-sections");
+  rgSecEl.innerHTML='<div style="font-size:15px;font-weight:600;margin:20px 0 12px;border-left:3px solid #6ee7b7;padding-left:10px">Best Facilities by Region</div>';
+  var regionsToShow=curRegion==="all"?topRg.map(function(r){return r[0]}):[curRegion];
+  regionsToShow.forEach(function(rgn){
+    var rgRows=d.filter(function(r){return r.region===rgn&&r.section});
+    if(!rgRows.length)return;
+    var rgRev=rgRows.reduce(function(s,r){return s+r.revenue;},0);
+    var rgQty=rgRows.reduce(function(s,r){return s+r.qty;},0);
+    var scM={};
+    rgRows.forEach(function(r){if(!scM[r.section])scM[r.section]={rev:0,qty:0};scM[r.section].rev+=r.revenue;scM[r.section].qty+=r.qty;});
+    var byCount=Object.entries(scM).sort(function(a,b){return b[1].qty-a[1].qty}).slice(0,8);
+    var byRev=Object.entries(scM).sort(function(a,b){return b[1].rev-a[1].rev}).slice(0,8);
+    var maxCount=byCount[0]?byCount[0][1].qty:1;
+    var maxRevR=byRev[0]?byRev[0][1].rev:1;
+
+    var wrap=document.createElement("div");wrap.style.marginBottom="14px";
+    var ttl=document.createElement("div");
+    ttl.style.cssText="background:#13132a;border:1px solid rgba(110,231,183,.1);border-radius:10px;padding:12px 16px;cursor:pointer;display:flex;justify-content:space-between;align-items:center";
+    ttl.innerHTML='<span style="font-weight:600;font-size:13px">'+rgn+'</span><span style="color:#8888aa;font-size:12px">'+fmtN(rgQty)+' passes &nbsp;·&nbsp; '+fmt(rgRev)+'</span>';
+    var body=document.createElement("div");
+    body.style.cssText="display:"+(curRegion===rgn?"block":"none")+";background:#1a1a2e;border:1px solid rgba(110,231,183,.08);border-top:none;border-radius:0 0 10px 10px;padding:16px";
+    var g2=document.createElement("div");g2.style.cssText="display:grid;grid-template-columns:1fr 1fr;gap:16px";
+
+    var left='<div style="font-size:12px;font-weight:600;margin-bottom:10px">By Tickets Sold</div>';
+    byCount.forEach(function(s,i){
+      var p=(s[1].qty/maxCount*100).toFixed(1);
+      left+='<div class="bar-row"><div class="bl">'+(i+1)+'. '+s[0].slice(0,38)+'</div><div class="bt"><div class="bf" style="width:'+p+'%"></div></div><div class="bv">'+fmtN(s[1].qty)+'</div></div>';
+    });
+
+    var right='<div style="font-size:12px;font-weight:600;margin-bottom:10px">By Revenue</div>';
+    byRev.forEach(function(s,i){
+      var p=(s[1].rev/maxRevR*100).toFixed(1);
+      right+='<div class="bar-row"><div class="bl">'+(i+1)+'. '+s[0].slice(0,38)+'</div><div class="bt"><div class="bf bf2" style="width:'+p+'%"></div></div><div class="bv">'+fmt(s[1].rev)+'</div></div>';
+    });
+
+    g2.innerHTML='<div>'+left+'</div><div>'+right+'</div>';
+    body.appendChild(g2);
+    ttl.onclick=function(){body.style.display=body.style.display==="none"?"block":"none";};
+    wrap.appendChild(ttl);wrap.appendChild(body);rgSecEl.appendChild(wrap);
+  });
+}
+
+function barChart(elId,items,alt){
+  var mx=Math.max.apply(null,items.map(function(x){return x.val;}));
+  document.getElementById(elId).innerHTML=items.map(function(item,i){
+    var p=mx>0?(item.val/mx*100).toFixed(1):0;
+    var fc=alt?"bf bf2":"bf";
+    return'<div class="bar-row"><div class="bl" title="'+item.label+'">'+(i+1)+'. '+item.label.slice(0,40)+'</div><div class="bt"><div class="'+fc+'" style="width:'+p+'%"></div></div><div class="bv">'+item.fmt(item.val)+'</div></div>';
+  }).join("");
+}
+
+function kpi(lbl,val,sub,purple){
+  return'<div class="kpi'+(purple?" p":"")+'"><div class="kpi-lbl">'+lbl+'</div><div class="kpi-val">'+val+'</div><div class="kpi-sub">'+sub+'</div></div>';
+}
+
+init();
+</script>
+</body>
+</html>
